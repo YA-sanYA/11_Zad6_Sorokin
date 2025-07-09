@@ -14,6 +14,8 @@ public:
     virtual void deserialize(QDataStream& in) = 0;
     virtual bool contains(const QPoint& point) const = 0;
     virtual void moveBy(int dx, int dy) = 0;
+    virtual QRect boundingRect() const = 0;
+    virtual Figure* clone() const = 0;
 };
 
 #endif // FIGURE_H

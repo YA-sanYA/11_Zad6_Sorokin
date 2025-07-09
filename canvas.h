@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QList>
+#include <QStack>
 #include <QPoint>
 #include "figure.h"
 
@@ -26,6 +27,14 @@ public:
     bool loadFromFile(const QString& filename);
     void clearAll();
     void deleteSelected();
+    void setBackgroundColor(const QColor& color);
+    void setBrushColor(const QColor& color);
+    QColor getBrushColor() const;
+    void copySelectedFigure();
+    void pasteFigure();
+    void pushToUndo();
+    void undo();
+    void redo();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -39,9 +48,16 @@ private:
     Figure* selectedFigure;
     QPoint startPoint;
     ToolType currentTool;
+    Figure* copiedFigure = nullptr;
 
     Figure* createFigureFromPoints(const QPoint& p1, const QPoint& p2);
     void deleteAllFigures();
+    QStack<QVector<Figure*>> undoStack;
+    QStack<QVector<Figure*>> redoStack;
+
+    QColor backgroundColor = Qt::white;
+    QColor brushColor = Qt::black;
+
 };
 
 #endif // CANVAS_H

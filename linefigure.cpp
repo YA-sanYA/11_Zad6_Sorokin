@@ -1,47 +1,58 @@
 #include "linefigure.h"
+#include <QPainter>
+#include <cmath>
 
-LineFigure::LineFigure() : line(0, 0, 0, 0) {}
+LineFigure::LineFigure() : line(0, 0, 0, 0), color(Qt::black) {}
 
-LineFigure::LineFigure(const QLine& l) : line(l) {}
+LineFigure::LineFigure(const QLine& l, const QColor& c)
+    : line(l), color(c) {}
 
 void LineFigure::draw(QPainter* painter)
 {
+    painter->setPen(color);
     painter->drawLine(line);
 }
 
 void LineFigure::serialize(QDataStream& out)
 {
-    out << QString("Line") << line;
+    out << QString("Line") << line << color;
 }
 
 void LineFigure::deserialize(QDataStream& in)
 {
-    in >> line;
+    in >> line >> color;
 }
 
-bool LineFigure::contains(const QPoint& point) const
+bool LineFigure::contains(const QPoint& pt) const
 {
-    QPointF p1 = line.p1();
-    QPointF p2 = line.p2();
-    QPointF p = point;
+    // Проверка близости к линии (в радиусе 3 пикселей)
+    double x0 = pt.x(), y0 = pt.y();
+    double x1 = line.x1(), y1 = line.y1();
+    double x2 = line.x2(), y2 = line.y2();
 
-    QPointF v = p2 - p1;
-    QPointF w = p - p1;
+    double dx = x2 - x1, dy = y2 - y1;
+    double len = std::hypot(dx, dy);
+    if (len == 0.0) return false;
 
-    double lenSquared = v.x() * v.x() + v.y() * v.y();
-    if (lenSquared == 0.0)
-        return (p - p1).manhattanLength() < 3;
-
-    double t = (w.x() * v.x() + w.y() * v.y()) / lenSquared;
-    if (t < 0.0 || t > 1.0)
-        return false;
-
-    QPointF projection = p1 + t * v;
-    double distance = std::hypot(p.x() - projection.x(), p.y() - projection.y());
-    return distance < 5.0;
+    double dist = std::abs(dy * x0 - dx * y0 + x2*y1 - y2*x1) / len;
+    return dist <= 3;
 }
 
 void LineFigure::moveBy(int dx, int dy)
 {
     line.translate(dx, dy);
+}
+
+QRect LineFigure::boundingRect() const
+{
+    return QRect(line.p1(), line.p2()).normalized();
+}
+
+QLine LineFigure::getLine() const
+{
+    return line;
+}
+
+Figure* LineFigure::clone() const {
+    return new LineFigure(line, color);
 }

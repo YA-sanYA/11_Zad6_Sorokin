@@ -23,12 +23,25 @@ void Canvas::setTool(ToolType tool)
 void Canvas::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
-    for (Figure* f : figures) {
+
+    painter.fillRect(rect(), backgroundColor);
+
+    for (Figure* f : figures)
         f->draw(&painter);
-    }
+
     if (currentFigure)
         currentFigure->draw(&painter);
+
+    if (selectedFigure) {
+        QPen pen(Qt::red, 2, Qt::DashLine);
+        painter.setPen(pen);
+
+        QRect bounds = selectedFigure->boundingRect();
+        bounds.adjust(-3, -3, +3, +3);
+        painter.drawRect(bounds);
+    }
 }
+
 
 void Canvas::mousePressEvent(QMouseEvent *event)
 {
@@ -42,6 +55,7 @@ void Canvas::mousePressEvent(QMouseEvent *event)
                 break;
             }
         }
+        update();
     } else {
         delete currentFigure;
         currentFigure = nullptr;
@@ -66,6 +80,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *event)
 void Canvas::mouseReleaseEvent(QMouseEvent *event)
 {
     if (currentTool != ToolType::Select && currentFigure) {
+        pushToUndo();
         figures.append(currentFigure);
         currentFigure = nullptr;
         update();
@@ -77,11 +92,11 @@ Figure* Canvas::createFigureFromPoints(const QPoint& p1, const QPoint& p2)
     QRect rect = QRect(p1, p2).normalized();
     switch (currentTool) {
     case ToolType::Rectangle:
-        return new RectangleFigure(rect);
+        return new RectangleFigure(rect, brushColor);
     case ToolType::Ellipse:
-        return new EllipseFigure(rect);
+        return new EllipseFigure(rect, brushColor);
     case ToolType::Line:
-        return new LineFigure(QLine(p1, p2));
+        return new LineFigure(QLine(p1, p2), brushColor);
     default:
         return nullptr;
     }
@@ -98,10 +113,10 @@ bool Canvas::saveToFile(const QString& filename)
     for (Figure* f : figures) {
         f->serialize(out);
     }
+    out << backgroundColor;
 
     return true;
 }
-
 
 bool Canvas::loadFromFile(const QString& filename)
 {
@@ -133,6 +148,8 @@ bool Canvas::loadFromFile(const QString& filename)
         }
     }
 
+    in >> backgroundColor;
+
     update();
     return true;
 }
@@ -140,12 +157,14 @@ bool Canvas::loadFromFile(const QString& filename)
 void Canvas::clearAll()
 {
     deleteAllFigures();
+    backgroundColor = Qt::white;
     update();
 }
 
 void Canvas::deleteSelected()
 {
     if (selectedFigure) {
+        pushToUndo();
         figures.removeOne(selectedFigure);
         delete selectedFigure;
         selectedFigure = nullptr;
@@ -165,3 +184,90 @@ void Canvas::deleteAllFigures()
     delete selectedFigure;
     selectedFigure = nullptr;
 }
+
+void Canvas::setBackgroundColor(const QColor& color)
+{
+    backgroundColor = color;
+    update();
+}
+
+void Canvas::setBrushColor(const QColor& color)
+{
+    brushColor = color;
+}
+
+QColor Canvas::getBrushColor() const
+{
+    return brushColor;
+}
+
+void Canvas::copySelectedFigure()
+{
+    if (copiedFigure) {
+        delete copiedFigure;
+        copiedFigure = nullptr;
+    }
+
+    if (selectedFigure) {
+        copiedFigure = selectedFigure->clone();
+    }
+}
+
+void Canvas::pasteFigure()
+{
+    if (copiedFigure) {
+        pushToUndo();
+        Figure* newFigure = copiedFigure->clone();
+        newFigure->moveBy(10, 10);
+        figures.append(newFigure);
+        update();
+    }
+}
+
+void Canvas::pushToUndo()
+{
+    QVector<Figure*> snapshot;
+    for (Figure* f : figures)
+        snapshot.append(f->clone());
+
+    undoStack.push(snapshot);
+
+    for (auto& snapshot : redoStack) {
+        qDeleteAll(snapshot);
+    }    redoStack.clear();
+}
+
+void Canvas::undo()
+{
+    if (undoStack.isEmpty())
+        return;
+
+    QVector<Figure*> snapshot;
+    for (Figure* f : figures)
+        snapshot.append(f->clone());
+    redoStack.push(snapshot);
+
+    deleteAllFigures();
+    figures = undoStack.pop();
+
+    selectedFigure = nullptr;
+    update();
+}
+
+void Canvas::redo()
+{
+    if (redoStack.isEmpty())
+        return;
+
+    QVector<Figure*> snapshot;
+    for (Figure* f : figures)
+        snapshot.append(f->clone());
+    undoStack.push(snapshot);
+
+    deleteAllFigures();
+    figures = redoStack.pop();
+
+    selectedFigure = nullptr;
+    update();
+}
+

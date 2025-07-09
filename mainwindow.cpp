@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QColorDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -84,3 +85,48 @@ void MainWindow::on_Exit_triggered()
     QApplication::quit();
 }
 
+
+void MainWindow::on_Background_triggered()
+{
+    QColor color = QColorDialog::getColor(Qt::white, this, "Выберите цвет фона");
+    if (color.isValid())
+        ui->CanvasWidget->setBackgroundColor(color);
+}
+
+
+void MainWindow::on_Brush_triggered()
+{
+    QColor color = QColorDialog::getColor(Qt::black, this, "Выберите цвет кисти");
+    if (color.isValid())
+        ui->CanvasWidget->setBrushColor(color);
+}
+
+
+void MainWindow::on_Delete_triggered()
+{
+    ui->CanvasWidget->deleteSelected();
+}
+
+
+void MainWindow::on_Copy_triggered()
+{
+    ui->CanvasWidget->copySelectedFigure();
+}
+
+
+void MainWindow::on_Paste_triggered()
+{
+    ui->CanvasWidget->pasteFigure();
+}
+
+
+void MainWindow::on_Undo_triggered()
+{
+    ui->CanvasWidget->undo();
+}
+
+
+void MainWindow::on_Redo_triggered()
+{
+    ui->CanvasWidget->redo();
+}
